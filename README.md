@@ -4,10 +4,10 @@ Apaga branches locais já mergeados em um branch base (padrão: `main`/`master`)
 
 ## Instalação (Linux)
 
-Via release do GitHub (substitua `OWNER/REPO`):
+Via release do GitHub:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/install.sh | GCM_REPO=OWNER/REPO sh
+curl -fsSL https://raw.githubusercontent.com/ArthurLobopro/git-clear-merged/main/install.sh | sh
 ```
 
 A partir do código-fonte (requer [Bun](https://bun.sh)):
@@ -16,7 +16,7 @@ A partir do código-fonte (requer [Bun](https://bun.sh)):
 ./install.sh
 ```
 
-Instala em `~/.local/bin` por padrão. Variáveis: `GCM_INSTALL_DIR` (ex.: `/usr/local/bin` com `sudo`), `GCM_VERSION` (tag do release).
+Instala em `~/.local/bin` por padrão. Variáveis: `GCM_INSTALL_DIR` (ex.: `/usr/local/bin` com `sudo`), `GCM_VERSION` (tag do release), `GCM_REPO` (outro fork).
 Para desinstalar: `./install.sh --uninstall`.
 
 ## Desenvolvimento

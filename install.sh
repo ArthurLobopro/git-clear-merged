@@ -2,13 +2,13 @@
 # Instalador do git-clean-merged (Linux).
 #
 # Instalar a partir de um release do GitHub:
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/install.sh | GCM_REPO=OWNER/REPO sh
+#   curl -fsSL https://raw.githubusercontent.com/ArthurLobopro/git-clear-merged/main/install.sh | sh
 #
 # Instalar a partir do código-fonte (dentro do repositório, requer bun):
 #   ./install.sh
 #
 # Variáveis:
-#   GCM_REPO         owner/repo no GitHub (modo release)
+#   GCM_REPO         owner/repo no GitHub (padrão: ArthurLobopro/git-clear-merged)
 #   GCM_VERSION      tag do release (padrão: latest)
 #   GCM_INSTALL_DIR  destino (padrão: ~/.local/bin; use /usr/local/bin com sudo)
 #
@@ -16,7 +16,7 @@
 set -eu
 
 NAME="git-clean-merged"
-REPO="${GCM_REPO:-}"
+REPO="${GCM_REPO:-ArthurLobopro/git-clear-merged}"
 VERSION="${GCM_VERSION:-latest}"
 DEST_DIR="${GCM_INSTALL_DIR:-$HOME/.local/bin}"
 DEST="$DEST_DIR/$NAME"
@@ -45,16 +45,17 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$DEST_DIR"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)"
+# Modo local só quando executado como arquivo (./install.sh), não via "curl | sh"
+SCRIPT_DIR=""
+if [ -f "$0" ]; then SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"; fi
 
-if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/src/index.ts" ] && [ -z "$REPO" ]; then
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/src/index.ts" ] && [ -z "${GCM_REPO:-}" ]; then
   # Modo local: compila a partir do código-fonte
   command -v bun >/dev/null 2>&1 || die "'bun' é necessário para instalar a partir do código-fonte (https://bun.sh)."
   say "→ Compilando a partir de $SCRIPT_DIR"
   (cd "$SCRIPT_DIR" && bun install --silent && bun build --compile src/index.ts --outfile "$TMP/$NAME" >/dev/null)
 else
   # Modo release: baixa o binário pré-compilado
-  [ -n "$REPO" ] || die "Defina GCM_REPO=owner/repo (ou rode ./install.sh dentro do repositório)."
   ASSET="$NAME-linux-$ARCH"
   if [ "$VERSION" = "latest" ]; then
     URL="https://github.com/$REPO/releases/latest/download/$ASSET"
