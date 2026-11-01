@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compilar binários e publicar release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+
+      - name: Rodar testes
+        run: bun test
+
+      - name: Compilar binários (linux-x64 e linux-arm64)
+        run: bun run build:release
+
+      - name: Enviar binários como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-clean-merged
+          path: dist/git-clean-merged-linux-*
+
+      - name: Publicar release no GitHub
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/git-clean-merged-linux-* \
+            --title "$GITHUB_REF_NAME" --generate-notes
