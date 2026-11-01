@@ -1,0 +1,17 @@
+{
+  "name": "git-clear-merged",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun src/index.ts",
+    "test": "bun test",
+    "build": "bun build --compile src/index.ts --outfile dist/git-clean-merged"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  }
+}
