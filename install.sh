@@ -61,14 +61,27 @@ else
   else
     URL="https://github.com/$REPO/releases/download/$VERSION/$ASSET"
   fi
+  SUMS_URL="${URL%/*}/SHA256SUMS"
+  fetch() {
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$1" -o "$2" || die "Falha ao baixar $1"
+    elif command -v wget >/dev/null 2>&1; then
+      wget -q "$1" -O "$2" || die "Falha ao baixar $1"
+    else
+      die "Precisa de 'curl' ou 'wget'."
+    fi
+  }
   say "→ Baixando $URL"
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$URL" -o "$TMP/$NAME" || die "Falha ao baixar $URL"
-  elif command -v wget >/dev/null 2>&1; then
-    wget -q "$URL" -O "$TMP/$NAME" || die "Falha ao baixar $URL"
-  else
-    die "Precisa de 'curl' ou 'wget'."
-  fi
+  fetch "$URL" "$TMP/$ASSET"
+  fetch "$SUMS_URL" "$TMP/SHA256SUMS"
+
+  say "→ Verificando integridade (SHA-256)"
+  command -v sha256sum >/dev/null 2>&1 || die "'sha256sum' é necessário para verificar o download."
+  EXPECTED="$(awk -v f="$ASSET" '$2 == f || $2 == "*" f { print $1 }' "$TMP/SHA256SUMS")"
+  [ -n "$EXPECTED" ] || die "$ASSET não consta em SHA256SUMS."
+  ACTUAL="$(sha256sum "$TMP/$ASSET" | awk '{ print $1 }')"
+  [ "$EXPECTED" = "$ACTUAL" ] || die "Checksum não confere (esperado $EXPECTED, obtido $ACTUAL). Instalação abortada."
+  mv "$TMP/$ASSET" "$TMP/$NAME"
 fi
 
 chmod +x "$TMP/$NAME"

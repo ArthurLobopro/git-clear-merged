@@ -30,16 +30,22 @@ jobs:
       - name: Compilar binários (linux-x64 e linux-arm64)
         run: bun run build:release
 
+      - name: Gerar checksums SHA-256
+        working-directory: dist
+        run: sha256sum git-clean-merged-linux-* > SHA256SUMS
+
       - name: Enviar binários como artefato
         uses: actions/upload-artifact@v4
         with:
           name: git-clean-merged
-          path: dist/git-clean-merged-linux-*
+          path: |
+            dist/git-clean-merged-linux-*
+            dist/SHA256SUMS
 
       - name: Publicar release no GitHub
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/git-clean-merged-linux-* \
+          gh release create "$GITHUB_REF_NAME" dist/git-clean-merged-linux-* dist/SHA256SUMS \
             --title "$GITHUB_REF_NAME" --generate-notes
