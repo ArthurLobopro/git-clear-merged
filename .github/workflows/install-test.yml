@@ -28,8 +28,11 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm]
     env:
       GH_TOKEN: ${{ github.token }}
-      GCM_INSTALL_DIR: ${{ runner.temp }}/bin
     steps:
+      # o contexto `runner` só existe dentro de steps, então o destino é definido aqui
+      - name: Definir diretório de instalação
+        run: echo "GCM_INSTALL_DIR=$RUNNER_TEMP/bin" >> "$GITHUB_ENV"
+
       - name: Descobrir versão esperada
         id: expected
         env:
