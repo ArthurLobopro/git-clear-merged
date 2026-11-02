@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { CliError } from "../src/errors.ts";
 import {
   assertInsideRepo, commitSha, currentBranch, deleteBranch,
-  listMergedBranches, parseBranchList, resolveBase,
+  isWorktreeClean, listMergedBranches, listWorktrees, loadWorktreeState,
+  parseBranchList, parseWorktreeList, removeWorktree, resolveBase,
 } from "../src/git.ts";
 import { createRepo } from "./helpers.ts";
 
@@ -14,6 +15,16 @@ describe("parseBranchList", () => {
     ]);
   });
   test("saída vazia", () => expect(parseBranchList("")).toEqual([]));
+});
+
+describe("parseWorktreeList", () => {
+  test("interpreta saída --porcelain", () => {
+    const out = "worktree /r\nHEAD abc\nbranch refs/heads/main\n\nworktree /w\nHEAD def\nbranch refs/heads/x\nlocked motivo\n\n";
+    expect(parseWorktreeList(out)).toEqual([
+      { path: "/r", locked: false },
+      { path: "/w", locked: true },
+    ]);
+  });
 });
 
 describe("operações git", () => {
@@ -57,10 +68,46 @@ describe("operações git", () => {
 
   test("listMergedBranches informa worktree", async () => {
     await repo.mergedBranch("feat/wt");
-    await repo.git("worktree", "add", "-q", `${repo.dir}-wt`, "feat/wt");
+    const path = await repo.addWorktree("feat/wt");
     const wt = (await listMergedBranches(repo.dir, "main")).find((x) => x.name === "feat/wt");
-    expect(wt?.worktree).toContain("-wt");
-    await repo.git("worktree", "remove", "--force", `${repo.dir}-wt`);
+    expect(wt?.worktree).toBe(path);
+  });
+
+  test("listWorktrees: principal primeiro e flag de bloqueio", async () => {
+    await repo.mergedBranch("feat/wt");
+    const path = await repo.addWorktree("feat/wt");
+    await repo.git("worktree", "lock", path);
+    expect(await listWorktrees(repo.dir)).toEqual([
+      { path: repo.dir, locked: false },
+      { path, locked: true },
+    ]);
+  });
+
+  test("isWorktreeClean detecta alterações e arquivos novos", async () => {
+    await repo.mergedBranch("feat/wt");
+    const path = await repo.addWorktree("feat/wt");
+    expect(await isWorktreeClean(path)).toBe(true);
+    await Bun.write(`${path}/novo.txt`, "x");
+    expect(await isWorktreeClean(path)).toBe(false);
+    expect(await isWorktreeClean(`${path}-inexistente`)).toBe(false);
+  });
+
+  test("loadWorktreeState e removeWorktree", async () => {
+    await repo.mergedBranch("feat/a");
+    await repo.mergedBranch("feat/b");
+    const a = await repo.addWorktree("feat/a");
+    const b = await repo.addWorktree("feat/b");
+    await Bun.write(`${b}/sujo.txt`, "x");
+    const branches = await listMergedBranches(repo.dir, "main");
+    const state = await loadWorktreeState(repo.dir, branches);
+    expect(state.main).toBe(repo.dir);
+    expect([...state.clean]).toContain(a);
+    expect([...state.clean]).not.toContain(b);
+
+    expect((await removeWorktree(repo.dir, a)).code).toBe(0);
+    expect(await Bun.file(`${a}/.git`).exists()).toBe(false);
+    // sem --force, o git recusa remover worktree com arquivos novos
+    expect((await removeWorktree(repo.dir, b)).code).not.toBe(0);
   });
 
   test("deleteBranch -d apaga mergeado e falha em não mergeado", async () => {

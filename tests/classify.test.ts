@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { classify, protectedPatterns } from "../src/classify.ts";
-import type { Branch } from "../src/git.ts";
+import type { Branch, WorktreeState } from "../src/git.ts";
 
 const b = (name: string, sha = "bbbbbbb", worktree = ""): Branch => ({ name, sha, worktree });
 const input = (branches: Branch[], over = {}) => ({
@@ -19,10 +19,48 @@ describe("classify", () => {
     expect(r.skipped).toEqual([{ name: "feat/x", reason: "branch atual" }]);
   });
 
-  test("preserva branch em worktree", () => {
+  test("preserva branch em worktree por padrão", () => {
     const r = classify(input([b("feat/x", "bbbbbbb", "/tmp/wt")]));
     expect(r.toDelete).toEqual([]);
     expect(r.skipped[0]!.reason).toContain("/tmp/wt");
+    expect(r.skipped[0]!.reason).toContain("--include-worktrees");
+  });
+
+  describe("com --include-worktrees", () => {
+    const state = (over: Partial<WorktreeState> = {}): WorktreeState => ({
+      main: "/repo", locked: new Set(), clean: new Set(["/wt"]), ...over,
+    });
+    const wt = (path = "/wt", name = "feat/x") => b(name, "bbbbbbb", path);
+
+    test("remove worktree limpo", () => {
+      const r = classify(input([wt()], { worktrees: state() }));
+      expect(r.toDelete.map((x) => x.name)).toEqual(["feat/x"]);
+    });
+
+    test("preserva worktree com alterações", () => {
+      const r = classify(input([wt()], { worktrees: state({ clean: new Set() }) }));
+      expect(r.toDelete).toEqual([]);
+      expect(r.skipped[0]!.reason).toContain("não commitadas");
+    });
+
+    test("preserva worktree bloqueado", () => {
+      const r = classify(input([wt()], { worktrees: state({ locked: new Set(["/wt"]) }) }));
+      expect(r.skipped[0]!.reason).toContain("bloqueado");
+    });
+
+    test("nunca remove o worktree principal", () => {
+      const r = classify(input([wt("/repo")], { worktrees: state({ clean: new Set(["/repo"]) }) }));
+      expect(r.toDelete).toEqual([]);
+      expect(r.skipped[0]!.reason).toContain("principal");
+    });
+
+    test("branch atual e protegidos continuam preservados", () => {
+      const r = classify(
+        input([wt("/wt", "cur"), wt("/wt", "develop")], { current: "cur", worktrees: state() }),
+      );
+      expect(r.toDelete).toEqual([]);
+      expect(r.skipped.map((x) => x.reason)).toEqual(["branch atual", "protegido"]);
+    });
   });
 
   test.each(["main", "master", "develop", "dev"])("protege %s", (name) => {

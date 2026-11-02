@@ -8,6 +8,8 @@ import {
   currentBranch,
   deleteBranch,
   listMergedBranches,
+  loadWorktreeState,
+  removeWorktree,
   resolveBase,
 } from "./git.ts";
 import pkg from "../package.json";
@@ -81,6 +83,7 @@ async function main(argv: string[], env: Env): Promise<number> {
   }
 
   const branches = await listMergedBranches(cwd, base);
+  const worktrees = opts.includeWorktrees ? await loadWorktreeState(cwd, branches) : undefined;
   const { toDelete, skipped } = classify({
     branches,
     base,
@@ -88,6 +91,7 @@ async function main(argv: string[], env: Env): Promise<number> {
     current,
     exclude: opts.exclude,
     includeEmpty: opts.includeEmpty,
+    worktrees,
   });
 
   out(
@@ -107,7 +111,10 @@ async function main(argv: string[], env: Env): Promise<number> {
   }
 
   out(`${opts.dryRun ? "Seriam apagados" : "Serão apagados"} (${toDelete.length}):`);
-  for (const b of toDelete) out(`  • ${b.name} ${dim(`(${b.sha.slice(0, 7)})`)}`);
+  for (const b of toDelete) {
+    const wt = b.worktree ? dim(` + worktree ${b.worktree}`) : "";
+    out(`  • ${b.name} ${dim(`(${b.sha.slice(0, 7)})`)}${wt}`);
+  }
   out("");
 
   if (opts.dryRun) {
@@ -143,6 +150,14 @@ async function main(argv: string[], env: Env): Promise<number> {
   const failures: { name: string; err: string }[] = [];
 
   for (const b of toDelete) {
+    if (b.worktree) {
+      const w = await removeWorktree(cwd, b.worktree);
+      if (w.code !== 0) {
+        failures.push({ name: b.name, err: `worktree ${b.worktree}: ${w.err}` });
+        out(red(`✖ ${b.name}`));
+        continue;
+      }
+    }
     const r = await deleteBranch(cwd, mode, b.name);
     if (r.code === 0) {
       ok++;

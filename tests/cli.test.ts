@@ -118,4 +118,76 @@ describe("cli run", () => {
     const t = testEnv(repo.dir);
     expect(await run(["-y", "-b", "nada"], t.env)).toBe(2);
   });
+
+  describe("--include-worktrees", () => {
+    const keep = ["-e", "feat/b", "-e", "release/*"];
+
+    test("sem a flag, branch em worktree é preservado", async () => {
+      const wt = await repo.addWorktree("feat/a");
+      const t = testEnv(repo.dir);
+      expect(await run(["-y", ...keep], t.env)).toBe(0);
+      expect(await repo.branches()).toContain("feat/a");
+      expect(await Bun.file(`${wt}/.git`).exists()).toBe(true);
+    });
+
+    test("remove worktree limpo e apaga o branch", async () => {
+      const wt = await repo.addWorktree("feat/a");
+      const t = testEnv(repo.dir);
+      expect(await run(["-y", "-w", ...keep], t.env)).toBe(0);
+      expect(await repo.branches()).not.toContain("feat/a");
+      expect(await Bun.file(`${wt}/.git`).exists()).toBe(false);
+    });
+
+    test("--dry-run lista o worktree sem remover", async () => {
+      const wt = await repo.addWorktree("feat/a");
+      const t = testEnv(repo.dir);
+      expect(await run(["-n", "-w", ...keep], t.env)).toBe(0);
+      expect(t.text()).toContain(`worktree ${wt}`);
+      expect(await Bun.file(`${wt}/.git`).exists()).toBe(true);
+    });
+
+    test("preserva worktree com arquivo não rastreado", async () => {
+      const wt = await repo.addWorktree("feat/a");
+      await Bun.write(`${wt}/novo.txt`, "x");
+      const t = testEnv(repo.dir);
+      expect(await run(["-y", "-w", ...keep], t.env)).toBe(0);
+      expect(await repo.branches()).toContain("feat/a");
+      expect(await Bun.file(`${wt}/novo.txt`).exists()).toBe(true);
+      expect(t.text()).toContain("não commitadas");
+    });
+
+    test("preserva worktree com alteração em arquivo rastreado", async () => {
+      await repo.git("checkout", "-q", "feat/a");
+      await Bun.write(`${repo.dir}/f.txt`, "1");
+      await repo.git("add", "f.txt");
+      await repo.git("commit", "-q", "-m", "f");
+      await repo.git("checkout", "-q", "main");
+      await repo.git("merge", "-q", "--no-ff", "-m", "m", "feat/a");
+      const wt = await repo.addWorktree("feat/a");
+      await Bun.write(`${wt}/f.txt`, "2");
+      const t = testEnv(repo.dir);
+      await run(["-y", "-w", ...keep], t.env);
+      expect(await repo.branches()).toContain("feat/a");
+      expect(await Bun.file(`${wt}/f.txt`).text()).toBe("2");
+    });
+
+    test("preserva worktree bloqueado", async () => {
+      const wt = await repo.addWorktree("feat/a");
+      await repo.git("worktree", "lock", wt);
+      const t = testEnv(repo.dir);
+      await run(["-y", "-w", ...keep], t.env);
+      expect(await repo.branches()).toContain("feat/a");
+      expect(t.text()).toContain("bloqueado");
+    });
+
+    test("nunca remove o worktree principal ao rodar de um worktree", async () => {
+      await repo.git("checkout", "-q", "feat/a"); // feat/a fica no worktree principal
+      const linked = await repo.addWorktree("outro", true); // novo branch a partir de feat/a
+      const t = testEnv(linked);
+      expect(await run(["-y", "-w", "-b", "main", ...keep], t.env)).toBe(0);
+      expect(await repo.branches()).toContain("feat/a");
+      expect(await Bun.file(`${repo.dir}/.git/HEAD`).exists()).toBe(true);
+      expect(t.text()).toContain("worktree principal");
+    });
+  });
 });

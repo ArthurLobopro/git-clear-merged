@@ -9,6 +9,7 @@ export type Options = {
   dryRun: boolean;
   exclude: string[];
   includeEmpty: boolean;
+  includeWorktrees: boolean;
   yes: boolean;
   help: boolean;
   version: boolean;
@@ -23,6 +24,7 @@ const LONG_BY_SHORT: Record<string, string> = {
   D: "force",
   n: "dry-run",
   e: "exclude",
+  w: "include-worktrees",
   y: "yes",
   h: "help",
   v: "version",
@@ -37,6 +39,7 @@ export function parseArgs(argv: string[]): Options {
     dryRun: false,
     exclude: [],
     includeEmpty: false,
+    includeWorktrees: false,
     yes: false,
     help: false,
     version: false,
@@ -63,6 +66,7 @@ export function parseArgs(argv: string[]): Options {
       case "force": opts.force = true; break;
       case "dry-run": opts.dryRun = true; break;
       case "include-empty": opts.includeEmpty = true; break;
+      case "include-worktrees": opts.includeWorktrees = true; break;
       case "yes": opts.yes = true; break;
       case "help": opts.help = true; break;
       case "version": opts.version = true; break;
