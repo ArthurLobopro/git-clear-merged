@@ -15,25 +15,28 @@ on:
 
 jobs:
   install:
-    name: Instalar e validar (${{ matrix.arch }})
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ${{ matrix.runner }}
+    name: Instalar e validar (${{ matrix.os }})
+    # workflow_run: só quando o Build foi disparado por push de tag (que publica release)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: x64
-            runner: ubuntu-latest
-          - arch: arm64
-            runner: ubuntu-24.04-arm
+        # ubuntu-latest = x64, ubuntu-24.04-arm = arm64
+        os: [ubuntu-latest, ubuntu-24.04-arm]
     env:
       GH_TOKEN: ${{ github.token }}
       GCM_INSTALL_DIR: ${{ runner.temp }}/bin
     steps:
       - name: Descobrir versão esperada
         id: expected
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          RUN_TAG: ${{ github.event.workflow_run.head_branch }}
         run: |
-          VERSION="${{ inputs.version }}"
+          VERSION="${INPUT_VERSION:-$RUN_TAG}"
           if [ -z "$VERSION" ]; then
             VERSION="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
           fi
@@ -41,13 +44,16 @@ jobs:
           echo "Versão esperada: $VERSION"
 
       - name: Instalar via install.sh (como no README)
+        env:
+          EXPECTED_TAG: ${{ steps.expected.outputs.tag }}
         run: |
           curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh" \
-            | GCM_VERSION="${{ steps.expected.outputs.tag }}" sh
+            | GCM_VERSION="$EXPECTED_TAG" sh
 
       - name: Conferir versão instalada
+        env:
+          EXPECTED: ${{ steps.expected.outputs.tag }}
         run: |
-          EXPECTED="${{ steps.expected.outputs.tag }}"
           ACTUAL="$("$GCM_INSTALL_DIR/git-clean-merged" --version)"
           echo "Instalada: $ACTUAL / esperada: ${EXPECTED#v}"
           test "$ACTUAL" = "${EXPECTED#v}"

@@ -39,6 +39,10 @@ case "$(uname -m)" in
   *) die "Arquitetura não suportada: $(uname -m)" ;;
 esac
 
+if command -v ldd >/dev/null 2>&1 && ldd --version 2>&1 | grep -qi musl; then
+  die "Sistemas baseados em musl (ex.: Alpine) não são suportados."
+fi
+
 command -v git >/dev/null 2>&1 || say "⚠ 'git' não encontrado no PATH (necessário para usar o $NAME)."
 
 TMP="$(mktemp -d)"
@@ -86,7 +90,9 @@ else
 fi
 
 chmod +x "$TMP/$NAME"
-mv "$TMP/$NAME" "$DEST"
+# copia para o destino e renomeia: substituição atômica, mesmo com o binário em uso
+cp "$TMP/$NAME" "$DEST.new.$$"
+mv -f "$DEST.new.$$" "$DEST"
 say "✔ Instalado em $DEST"
 
 case ":$PATH:" in
