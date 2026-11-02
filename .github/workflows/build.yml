@@ -24,11 +24,19 @@ jobs:
       - name: Instalar dependências
         run: bun install --frozen-lockfile
 
+      - name: Conferir tag x versão do package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: test "v$(bun -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+
       - name: Rodar testes
         run: bun test
 
       - name: Compilar binários (linux-x64 e linux-arm64)
         run: bun run build:release
+
+      - name: Smoke test do binário x64
+        run: |
+          test "$(dist/git-clean-merged-linux-x64 --version)" = "$(bun -p 'require("./package.json").version')"
 
       - name: Gerar checksums SHA-256
         working-directory: dist
@@ -47,5 +55,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/git-clean-merged-linux-* dist/SHA256SUMS \
-            --title "$GITHUB_REF_NAME" --generate-notes
+          FILES="dist/git-clean-merged-linux-* dist/SHA256SUMS"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" $FILES --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" $FILES \
+              --title "$GITHUB_REF_NAME" --generate-notes
+          fi
