@@ -10,9 +10,7 @@
     "build:release": "mkdir -p dist && bun build --compile --target=bun-linux-x64-baseline src/index.ts --outfile dist/git-clean-merged-linux-x64 && bun build --compile --target=bun-linux-arm64 src/index.ts --outfile dist/git-clean-merged-linux-arm64"
   },
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
+    "@types/bun": "latest",
     "typescript": "^7"
   }
 }
