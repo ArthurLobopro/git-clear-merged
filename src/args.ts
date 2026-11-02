@@ -11,6 +11,7 @@ export type Options = {
   includeEmpty: boolean;
   yes: boolean;
   help: boolean;
+  version: boolean;
 };
 
 export type DeleteMode = "d" | "D";
@@ -24,6 +25,7 @@ const LONG_BY_SHORT: Record<string, string> = {
   e: "exclude",
   y: "yes",
   h: "help",
+  v: "version",
 };
 const VALUE_OPTIONS = new Set(["base", "mode", "exclude"]);
 
@@ -37,6 +39,7 @@ export function parseArgs(argv: string[]): Options {
     includeEmpty: false,
     yes: false,
     help: false,
+    version: false,
   };
 
   let i = 0;
@@ -62,6 +65,7 @@ export function parseArgs(argv: string[]): Options {
       case "include-empty": opts.includeEmpty = true; break;
       case "yes": opts.yes = true; break;
       case "help": opts.help = true; break;
+      case "version": opts.version = true; break;
       default: throw new CliError(`Opção desconhecida: '${name}'.\n${help()}`);
     }
   };

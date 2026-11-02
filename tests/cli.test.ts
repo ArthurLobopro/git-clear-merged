@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import pkg from "../package.json";
 import { run } from "../src/cli.ts";
 import { createRepo, testEnv } from "./helpers.ts";
 
@@ -16,6 +17,12 @@ describe("cli run", () => {
     const t = testEnv(repo.dir);
     expect(await run(["--help"], t.env)).toBe(0);
     expect(t.text()).toContain("git-clean-merged");
+  });
+
+  test.each(["-v", "--version"])("%s mostra a versão do package.json", async (flag) => {
+    const t = testEnv(repo.dir);
+    expect(await run([flag], t.env)).toBe(0);
+    expect(t.out).toEqual([pkg.version]);
   });
 
   test("erro de uso retorna 2", async () => {

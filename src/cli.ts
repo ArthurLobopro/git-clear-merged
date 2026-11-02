@@ -10,6 +10,7 @@ import {
   listMergedBranches,
   resolveBase,
 } from "./git.ts";
+import pkg from "../package.json";
 import { help } from "./help.ts";
 import { bold, dim, green, red, yellow } from "./ui.ts";
 
@@ -51,6 +52,11 @@ async function main(argv: string[], env: Env): Promise<number> {
 
   if (opts.help) {
     out(help());
+    return 0;
+  }
+
+  if (opts.version) {
+    out(pkg.version);
     return 0;
   }
 

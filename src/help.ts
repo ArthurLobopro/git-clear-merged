@@ -17,6 +17,7 @@ ${bold("Opções:")}
                          (por padrão são ignorados: podem ser branches novos)
   -y, --yes              Não pede confirmação
   -h, --help             Mostra esta ajuda
+  -v, --version          Mostra a versão do programa
 
 ${bold("Sempre preservados:")} base, main, master, develop, dev, o branch atual
 e qualquer branch em checkout em algum worktree.

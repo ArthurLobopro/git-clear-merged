@@ -6,7 +6,7 @@ describe("parseArgs", () => {
   test("defaults", () => {
     expect(parseArgs([])).toEqual({
       safe: false, force: false, dryRun: false, exclude: [],
-      includeEmpty: false, yes: false, help: false,
+      includeEmpty: false, yes: false, help: false, version: false,
     });
   });
 
@@ -26,6 +26,11 @@ describe("parseArgs", () => {
 
   test("--include-empty e --help", () => {
     expect(parseArgs(["--include-empty", "-h"])).toMatchObject({ includeEmpty: true, help: true });
+  });
+
+  test("-v e --version", () => {
+    expect(parseArgs(["-v"]).version).toBe(true);
+    expect(parseArgs(["--version"]).version).toBe(true);
   });
 
   test.each([
