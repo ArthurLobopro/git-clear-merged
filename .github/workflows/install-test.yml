@@ -1,0 +1,74 @@
+name: Install test
+
+on:
+  # Depois que o Build termina com sucesso (e publica o release)
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+  # Manual: permite testar a última versão ou uma tag específica
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tag a instalar (vazio = latest)"
+        required: false
+        default: ""
+
+jobs:
+  install:
+    name: Instalar e validar (${{ matrix.arch }})
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GCM_INSTALL_DIR: ${{ runner.temp }}/bin
+    steps:
+      - name: Descobrir versão esperada
+        id: expected
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+          fi
+          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Versão esperada: $VERSION"
+
+      - name: Instalar via install.sh (como no README)
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh" \
+            | GCM_VERSION="${{ steps.expected.outputs.tag }}" sh
+
+      - name: Conferir versão instalada
+        run: |
+          EXPECTED="${{ steps.expected.outputs.tag }}"
+          ACTUAL="$("$GCM_INSTALL_DIR/git-clean-merged" --version)"
+          echo "Instalada: $ACTUAL / esperada: ${EXPECTED#v}"
+          test "$ACTUAL" = "${EXPECTED#v}"
+
+      - name: Smoke test em um repositório temporário
+        run: |
+          export PATH="$GCM_INSTALL_DIR:$PATH"
+          cd "$(mktemp -d)"
+          git init -q -b main
+          git config user.email ci@example.com
+          git config user.name CI
+          git commit -q --allow-empty -m init
+          git checkout -q -b feat/a
+          git commit -q --allow-empty -m a
+          git checkout -q main
+          git merge -q --no-ff -m "merge a" feat/a
+          git-clean-merged --yes
+          test -z "$(git branch --list feat/a)"
+
+      - name: Desinstalar
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh" -o install.sh
+          sh install.sh --uninstall
+          test ! -e "$GCM_INSTALL_DIR/git-clean-merged"
