@@ -75,3 +75,61 @@ export async function listMergedBranches(cwd: string, base: string): Promise<Bra
 export function deleteBranch(cwd: string, mode: "d" | "D", name: string): Promise<GitResult> {
   return git(cwd, ["branch", `-${mode}`, name]);
 }
+
+/** `prunable`: o diretório do worktree foi apagado à mão (requer git ≥ 2.31 para ser detectado). */
+export type Worktree = { path: string; locked: boolean; prunable: boolean };
+
+/** Estado dos worktrees usado para decidir quais podem ser removidos. */
+export type WorktreeState = {
+  /** Worktree principal (nunca removível). */
+  main: string;
+  locked: Set<string>;
+  /** Worktrees sem alterações não commitadas nem arquivos não rastreados. */
+  clean: Set<string>;
+};
+
+export function parseWorktreeList(out: string): Worktree[] {
+  return out
+    .split("\n\n")
+    .map((block) => block.split("\n"))
+    .filter((lines) => lines[0]?.startsWith("worktree "))
+    .map((lines) => ({
+      path: lines[0]!.slice("worktree ".length),
+      locked: lines.some((l) => l === "locked" || l.startsWith("locked ")),
+      prunable: lines.some((l) => l === "prunable" || l.startsWith("prunable ")),
+    }));
+}
+
+/** O primeiro item é sempre o worktree principal. */
+export async function listWorktrees(cwd: string): Promise<Worktree[]> {
+  const r = await git(cwd, ["worktree", "list", "--porcelain"]);
+  if (r.code !== 0) throw new CliError(`Falha ao listar worktrees: ${r.err}`);
+  return parseWorktreeList(r.out);
+}
+
+/** Limpo = sem alterações (staged ou não) e sem arquivos novos. Falha na consulta conta como sujo. */
+export async function isWorktreeClean(path: string): Promise<boolean> {
+  try {
+    const r = await git(path, ["status", "--porcelain"]);
+    return r.code === 0 && r.out.trim() === "";
+  } catch {
+    return false; // diretório do worktree não existe mais (prunable)
+  }
+}
+
+export async function loadWorktreeState(all: Worktree[], branches: Branch[]): Promise<WorktreeState> {
+  const clean = new Set<string>();
+  for (const b of branches) {
+    if (b.worktree && (await isWorktreeClean(b.worktree))) clean.add(b.worktree);
+  }
+  return {
+    main: all[0]?.path ?? "",
+    locked: new Set(all.filter((w) => w.locked).map((w) => w.path)),
+    clean,
+  };
+}
+
+/** Sem --force: o próprio git recusa remover worktree com alterações. */
+export function removeWorktree(cwd: string, path: string): Promise<GitResult> {
+  return git(cwd, ["worktree", "remove", path]);
+}

@@ -13,8 +13,16 @@ export async function createRepo() {
   await sh("config", "user.name", "Test");
   await sh("config", "commit.gpgsign", "false");
   await sh("commit", "-q", "--allow-empty", "-m", "init");
+  const worktrees: string[] = [];
   return {
     dir,
+    /** Cria um worktree (fora do repo) com o branch indicado em checkout; removido no cleanup. */
+    async addWorktree(branch: string, newBranch = false) {
+      const path = `${dir}-wt-${worktrees.length}`;
+      worktrees.push(path);
+      await sh("worktree", "add", "-q", ...(newBranch ? ["-b", branch, path] : [path, branch]));
+      return path;
+    },
     git: sh,
     commit: (msg: string) => sh("commit", "-q", "--allow-empty", "-m", msg),
     /** Cria um branch com um commit próprio e o mergeia em main (voltando para main). */
@@ -27,7 +35,9 @@ export async function createRepo() {
     async branches() {
       return (await sh("branch", "--format=%(refname:short)")).split("\n").filter(Boolean).sort();
     },
-    cleanup: () => rm(dir, { recursive: true, force: true }),
+    cleanup: async () => {
+      for (const p of [dir, ...worktrees]) await rm(p, { recursive: true, force: true });
+    },
   };
 }
 

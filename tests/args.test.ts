@@ -6,7 +6,7 @@ describe("parseArgs", () => {
   test("defaults", () => {
     expect(parseArgs([])).toEqual({
       safe: false, force: false, dryRun: false, exclude: [],
-      includeEmpty: false, yes: false, help: false, version: false,
+      includeEmpty: false, includeWorktrees: false, yes: false, help: false, version: false,
     });
   });
 
@@ -26,6 +26,12 @@ describe("parseArgs", () => {
 
   test("--include-empty e --help", () => {
     expect(parseArgs(["--include-empty", "-h"])).toMatchObject({ includeEmpty: true, help: true });
+  });
+
+  test("-w e --include-worktrees", () => {
+    expect(parseArgs(["-w"]).includeWorktrees).toBe(true);
+    expect(parseArgs(["--include-worktrees"]).includeWorktrees).toBe(true);
+    expect(parseArgs(["-wn"])).toMatchObject({ includeWorktrees: true, dryRun: true });
   });
 
   test("-v e --version", () => {
