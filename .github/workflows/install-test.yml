@@ -15,17 +15,14 @@ on:
 
 jobs:
   install:
-    name: Instalar e validar (${{ matrix.arch }})
+    name: Instalar e validar (${{ matrix.os }})
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: x64
-            runner: ubuntu-latest
-          - arch: arm64
-            runner: ubuntu-24.04-arm
+        # ubuntu-latest = x64, ubuntu-24.04-arm = arm64
+        os: [ubuntu-latest, ubuntu-24.04-arm]
     env:
       GH_TOKEN: ${{ github.token }}
       GCM_INSTALL_DIR: ${{ runner.temp }}/bin
