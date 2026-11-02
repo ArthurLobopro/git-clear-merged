@@ -185,6 +185,7 @@ ${b("git-clean-merged")} — deletes local branches already merged into the base
 
 ${b("Usage:")}
   git-clean-merged [options]
+  git-clean-merged settings ...   Manage saved settings (see 'settings')
 
 ${b("Options:")}
   -b, --base <ref>       Base branch (default: main, or master if it does not exist)
@@ -206,10 +207,59 @@ ${b("Always preserved:")} base, main, master, develop, dev, the current branch
 and any branch checked out in a worktree (see --include-worktrees).
 The main worktree, locked worktrees and worktrees with changes are never removed.
 
-${b("Language:")} English (default) or Portuguese, via GIT_CLEAN_MERGED_LANG=en|pt
-(or the LC_ALL, LC_MESSAGES and LANG locale variables).
+${b("Language:")} English (default) or Portuguese, via GIT_CLEAN_MERGED_LANG=en|pt,
+a saved setting ('settings set language pt') or the LC_ALL, LC_MESSAGES and LANG locale variables, in that order.
 
 ${b("Exit codes:")} 0 ok · 1 failed to delete some branch · 2 usage/validation error
 `;
+  }
+
+  settingsUsage(b: (s: string) => string): string {
+    return `
+${b("Usage:")}
+  git-clean-merged settings [list]
+  git-clean-merged settings get <key>
+  git-clean-merged settings set <key> <value>
+  git-clean-merged settings unset <key>
+
+${b("Keys:")}
+  language    Interface language: en, pt (default: system locale, then en)
+`;
+  }
+
+  settingsUnknownKey(key: string, valid: string): string {
+    return `Unknown setting: '${key}'. Valid settings: ${valid}.`;
+  }
+
+  settingsInvalidValue(key: string, value: string, accepted: string): string {
+    return `Invalid value '${value}' for '${key}'. Accepted values: ${accepted}.`;
+  }
+
+  settingsMissingArgs(command: string): string {
+    return `'settings ${command}' is missing arguments.`;
+  }
+
+  settingsUnknownCommand(command: string): string {
+    return `Unknown settings command: '${command}'.`;
+  }
+
+  settingsSaved(key: string, value: string): string {
+    return `✔ ${key} = ${value}`;
+  }
+
+  settingsRemoved(key: string): string {
+    return `✔ ${key} removed (default behavior restored).`;
+  }
+
+  settingsNotSet(): string {
+    return "(not set)";
+  }
+
+  settingsFile(path: string): string {
+    return `Settings file: ${path}`;
+  }
+
+  settingsSaveFailed(path: string, e: string): string {
+    return `Could not save settings to ${path}: ${e}`;
   }
 }

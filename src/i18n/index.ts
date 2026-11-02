@@ -12,7 +12,8 @@ import type { Translation } from "./translation.ts";
 
 export type { Translation } from "./translation.ts";
 
-export type Locale = "pt" | "en";
+export const LOCALES = ["en", "pt"] as const;
+export type Locale = (typeof LOCALES)[number];
 
 const translations: Record<Locale, Translation> = {
   en: new English(),
@@ -41,9 +42,18 @@ export function parseLocale(value: string | undefined): Locale | null {
   return null;
 }
 
-/** GIT_CLEAN_MERGED_LANG tem prioridade; depois LC_ALL, LC_MESSAGES e LANG. Padrão: en. */
-export function detectLocale(env: Record<string, string | undefined> = Bun.env): Locale {
-  for (const key of ["GIT_CLEAN_MERGED_LANG", "LC_ALL", "LC_MESSAGES", "LANG"]) {
+/**
+ * Prioridade: GIT_CLEAN_MERGED_LANG, idioma salvo nas settings, e então LC_ALL, LC_MESSAGES
+ * e LANG. Padrão: en.
+ */
+export function detectLocale(
+  env: Record<string, string | undefined> = Bun.env,
+  saved?: Locale,
+): Locale {
+  const fromOverride = parseLocale(env.GIT_CLEAN_MERGED_LANG);
+  if (fromOverride) return fromOverride;
+  if (saved) return saved;
+  for (const key of ["LC_ALL", "LC_MESSAGES", "LANG"]) {
     const value = env[key];
     if (!value || value === "C" || value === "POSIX") continue;
     const locale = parseLocale(value);

@@ -47,6 +47,7 @@ export function testEnv(cwd: string, over: Partial<Env> = {}) {
   const err: string[] = [];
   const env: Env = {
     cwd,
+    configPath: join(tmpdir(), "gcm-no-settings", "settings.json"),
     interactive: false,
     ask: () => null,
     out: (l) => out.push(l),

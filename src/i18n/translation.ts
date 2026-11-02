@@ -45,4 +45,14 @@ export interface Translation {
   worktreeFailure(p: string, e: string): string;
   worktreeSuffix(p: string): string;
   helpText(b: (s: string) => string): string;
+  settingsUsage(b: (s: string) => string): string;
+  settingsUnknownKey(key: string, valid: string): string;
+  settingsInvalidValue(key: string, value: string, accepted: string): string;
+  settingsMissingArgs(command: string): string;
+  settingsUnknownCommand(command: string): string;
+  settingsSaved(key: string, value: string): string;
+  settingsRemoved(key: string): string;
+  settingsNotSet(): string;
+  settingsFile(path: string): string;
+  settingsSaveFailed(path: string, e: string): string;
 }

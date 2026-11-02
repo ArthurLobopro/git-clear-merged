@@ -185,6 +185,7 @@ ${b("git-clean-merged")} — apaga branches locais já mergeadas no branch base
 
 ${b("Uso:")}
   git-clean-merged [opções]
+  git-clean-merged settings ...   Gerencia configurações salvas (veja 'settings')
 
 ${b("Opções:")}
   -b, --base <ref>       Branch base (padrão: main, ou master se não existir)
@@ -206,10 +207,59 @@ ${b("Sempre preservados:")} base, main, master, develop, dev, o branch atual
 e qualquer branch em checkout em algum worktree (veja --include-worktrees).
 O worktree principal, worktrees bloqueados e worktrees com alterações nunca são removidos.
 
-${b("Idioma:")} inglês (padrão) ou português, via GIT_CLEAN_MERGED_LANG=en|pt
-(ou pelas variáveis de locale LC_ALL, LC_MESSAGES e LANG).
+${b("Idioma:")} inglês (padrão) ou português, via GIT_CLEAN_MERGED_LANG=en|pt,
+uma configuração salva ('settings set language pt') ou pelas variáveis de locale LC_ALL, LC_MESSAGES e LANG, nessa ordem.
 
 ${b("Códigos de saída:")} 0 ok · 1 falha ao apagar algum branch · 2 erro de uso/validação
 `;
+  }
+
+  settingsUsage(b: (s: string) => string): string {
+    return `
+${b("Uso:")}
+  git-clean-merged settings [list]
+  git-clean-merged settings get <chave>
+  git-clean-merged settings set <chave> <valor>
+  git-clean-merged settings unset <chave>
+
+${b("Chaves:")}
+  language    Idioma da interface: en, pt (padrão: idioma do sistema, depois en)
+`;
+  }
+
+  settingsUnknownKey(key: string, valid: string): string {
+    return `Configuração desconhecida: '${key}'. Configurações válidas: ${valid}.`;
+  }
+
+  settingsInvalidValue(key: string, value: string, accepted: string): string {
+    return `Valor inválido '${value}' para '${key}'. Valores aceitos: ${accepted}.`;
+  }
+
+  settingsMissingArgs(command: string): string {
+    return `Faltam argumentos em 'settings ${command}'.`;
+  }
+
+  settingsUnknownCommand(command: string): string {
+    return `Comando de settings desconhecido: '${command}'.`;
+  }
+
+  settingsSaved(key: string, value: string): string {
+    return `✔ ${key} = ${value}`;
+  }
+
+  settingsRemoved(key: string): string {
+    return `✔ ${key} removida (comportamento padrão restaurado).`;
+  }
+
+  settingsNotSet(): string {
+    return "(não definida)";
+  }
+
+  settingsFile(path: string): string {
+    return `Arquivo de configurações: ${path}`;
+  }
+
+  settingsSaveFailed(path: string, e: string): string {
+    return `Não foi possível salvar as configurações em ${path}: ${e}`;
   }
 }

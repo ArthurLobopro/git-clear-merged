@@ -16,11 +16,15 @@ import {
 import pkg from "../package.json";
 import { help } from "./help.ts";
 import { t } from "./i18n/index.ts";
+import { settingsCommand } from "./settings-cmd.ts";
+import { settingsPath } from "./settings.ts";
 import { bold, dim, green, red, yellow } from "./ui.ts";
 
 /** Dependências de I/O injetáveis, para permitir testes sem terminal. */
 export type Env = {
   cwd: string;
+  /** Arquivo JSON de configurações do usuário. */
+  configPath: string;
   interactive: boolean;
   ask: (question: string) => string | null;
   out: (line: string) => void;
@@ -29,6 +33,7 @@ export type Env = {
 
 export const defaultEnv = (): Env => ({
   cwd: process.cwd(),
+  configPath: settingsPath(),
   interactive: Boolean(process.stdin.isTTY),
   ask: (q) => prompt(q),
   out: (l) => console.log(l),
@@ -52,6 +57,11 @@ export async function run(argv: string[], env: Env = defaultEnv()): Promise<numb
 
 async function main(argv: string[], env: Env): Promise<number> {
   const { cwd, out, err } = env;
+
+  if (argv[0] === "settings") {
+    return settingsCommand(argv.slice(1), { configPath: env.configPath, out });
+  }
+
   const opts = parseArgs(argv);
 
   if (opts.help) {

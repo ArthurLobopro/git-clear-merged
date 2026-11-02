@@ -19,12 +19,24 @@ A partir do código-fonte (requer [Bun](https://bun.sh)):
 Instala em `~/.local/bin` por padrão. Variáveis: `GCM_INSTALL_DIR` (ex.: `/usr/local/bin` com `sudo`), `GCM_VERSION` (tag do release), `GCM_REPO` (outro fork).
 Para desinstalar: `./install.sh --uninstall`.
 
-## Idioma
+## Idioma e configurações
 
-A interface está em inglês por padrão e também suporta português (Brasil). O idioma é escolhido por:
+A interface está em inglês por padrão e também suporta português (Brasil). O idioma é escolhido, em ordem de prioridade, por:
 
 1. `GIT_CLEAN_MERGED_LANG=pt` (ou `en`);
-2. variáveis de locale do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`), ex.: `LANG=pt_BR.UTF-8` ativa o português.
+2. configuração salva (`git-clean-merged settings set language pt`);
+3. variáveis de locale do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`), ex.: `LANG=pt_BR.UTF-8`.
+
+O comando `settings` gerencia as configurações do usuário:
+
+```sh
+git-clean-merged settings              # lista (ou: settings list)
+git-clean-merged settings get language
+git-clean-merged settings set language pt
+git-clean-merged settings unset language
+```
+
+Elas ficam em `$XDG_CONFIG_HOME/git-clean-merged/settings.json` (por padrão `~/.config/git-clean-merged/settings.json`).
 
 Para adicionar um idioma, crie uma classe em `src/i18n/` que estenda `English` e sobrescreva só o que traduzir (o resto cai no inglês), e registre-a em `src/i18n/index.ts`.
 
