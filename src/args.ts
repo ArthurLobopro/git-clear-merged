@@ -1,3 +1,4 @@
+import { t } from "./i18n/index.ts";
 import { CliError } from "./errors.ts";
 import { help } from "./help.ts";
 
@@ -52,10 +53,10 @@ export function parseArgs(argv: string[]): Options {
     if (VALUE_OPTIONS.has(name)) {
       value = inlineValue ?? argv[++i];
       if (value === undefined || value === "") {
-        throw new CliError(`A opção '${name}' exige um valor.`);
+        throw new CliError(t().optNeedsValue(name));
       }
     } else if (inlineValue !== undefined) {
-      throw new CliError(`A opção '${name}' não aceita valor.`);
+      throw new CliError(t().optNoValue(name));
     }
 
     switch (name) {
@@ -70,7 +71,7 @@ export function parseArgs(argv: string[]): Options {
       case "yes": opts.yes = true; break;
       case "help": opts.help = true; break;
       case "version": opts.version = true; break;
-      default: throw new CliError(`Opção desconhecida: '${name}'.\n${help()}`);
+      default: throw new CliError(t().unknownOption(name, help()));
     }
   };
 
@@ -84,7 +85,7 @@ export function parseArgs(argv: string[]): Options {
     } else if (arg.startsWith("-") && arg.length > 1) {
       for (let j = 1; j < arg.length; j++) {
         const long = LONG_BY_SHORT[arg[j]!];
-        if (!long) throw new CliError(`Opção desconhecida: '-${arg[j]}'.\n${help()}`);
+        if (!long) throw new CliError(t().unknownOption(`-${arg[j]}`, help()));
         if (VALUE_OPTIONS.has(long)) {
           // o resto do argumento (se houver) é o valor: -bmain
           const rest = arg.slice(j + 1);
@@ -94,7 +95,7 @@ export function parseArgs(argv: string[]): Options {
         apply(long);
       }
     } else {
-      throw new CliError(`Argumento inesperado: '${arg}'.\n${help()}`);
+      throw new CliError(t().unexpectedArg(arg, help()));
     }
   }
 
@@ -108,11 +109,11 @@ export function resolveMode(opts: Pick<Options, "mode" | "safe" | "force">): Del
   if (opts.safe) requested.add("d");
   if (opts.force) requested.add("D");
   if (requested.size > 1) {
-    throw new CliError("Modos conflitantes: use apenas um entre --mode, -d e -D.");
+    throw new CliError(t().conflictingModes());
   }
   const mode = [...requested][0] ?? "d";
   if (mode !== "d" && mode !== "D") {
-    throw new CliError(`Modo inválido '${mode}'. Use 'd' ou 'D'.`);
+    throw new CliError(t().invalidMode(mode));
   }
   return mode;
 }

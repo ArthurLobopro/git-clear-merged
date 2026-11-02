@@ -19,6 +19,15 @@ A partir do código-fonte (requer [Bun](https://bun.sh)):
 Instala em `~/.local/bin` por padrão. Variáveis: `GCM_INSTALL_DIR` (ex.: `/usr/local/bin` com `sudo`), `GCM_VERSION` (tag do release), `GCM_REPO` (outro fork).
 Para desinstalar: `./install.sh --uninstall`.
 
+## Idioma
+
+A interface está em inglês por padrão e também suporta português (Brasil). O idioma é escolhido por:
+
+1. `GIT_CLEAN_MERGED_LANG=pt` (ou `en`);
+2. variáveis de locale do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`), ex.: `LANG=pt_BR.UTF-8` ativa o português.
+
+Para adicionar um idioma, crie uma classe em `src/i18n/` que estenda `English` e sobrescreva só o que traduzir (o resto cai no inglês), e registre-a em `src/i18n/index.ts`.
+
 ## Desenvolvimento
 
 ```bash

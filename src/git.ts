@@ -1,3 +1,4 @@
+import { t } from "./i18n/index.ts";
 import { $ } from "bun";
 import { CliError } from "./errors.ts";
 
@@ -17,14 +18,14 @@ export async function git(cwd: string, args: string[]): Promise<GitResult> {
 
 export function assertGitAvailable(): void {
   if (!Bun.which("git")) {
-    throw new CliError("O comando 'git' não foi encontrado no PATH.");
+    throw new CliError(t().gitNotFound());
   }
 }
 
 export async function assertInsideRepo(cwd: string): Promise<void> {
   const r = await git(cwd, ["rev-parse", "--is-inside-work-tree"]);
   if (r.out.trim() !== "true") {
-    throw new CliError("Este diretório não está dentro de um repositório Git.");
+    throw new CliError(t().notInRepo());
   }
 }
 
@@ -36,8 +37,8 @@ export async function resolveBase(cwd: string, explicit?: string): Promise<strin
   }
   throw new CliError(
     explicit
-      ? `Branch base '${explicit}' não existe.`
-      : "Não encontrei 'main' nem 'master'. Informe um branch com --base.",
+      ? t().baseMissing(explicit)
+      : t().baseNotFound(),
   );
 }
 
@@ -68,7 +69,7 @@ export async function listMergedBranches(cwd: string, base: string): Promise<Bra
     "--format=%(refname:short)%09%(objectname)%09%(worktreepath)",
     "refs/heads",
   ]);
-  if (r.code !== 0) throw new CliError(`Falha ao listar branches: ${r.err}`);
+  if (r.code !== 0) throw new CliError(t().listBranchesFailed(r.err));
   return parseBranchList(r.out);
 }
 
@@ -103,7 +104,7 @@ export function parseWorktreeList(out: string): Worktree[] {
 /** O primeiro item é sempre o worktree principal. */
 export async function listWorktrees(cwd: string): Promise<Worktree[]> {
   const r = await git(cwd, ["worktree", "list", "--porcelain"]);
-  if (r.code !== 0) throw new CliError(`Falha ao listar worktrees: ${r.err}`);
+  if (r.code !== 0) throw new CliError(t().listWorktreesFailed(r.err));
   return parseWorktreeList(r.out);
 }
 
