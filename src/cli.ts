@@ -15,11 +15,16 @@ import {
 } from "./git.ts";
 import pkg from "../package.json";
 import { help } from "./help.ts";
+import { t } from "./i18n/index.ts";
+import { settingsCommand } from "./settings-cmd.ts";
+import { settingsPath } from "./settings.ts";
 import { bold, dim, green, red, yellow } from "./ui.ts";
 
 /** Dependências de I/O injetáveis, para permitir testes sem terminal. */
 export type Env = {
   cwd: string;
+  /** Arquivo JSON de configurações do usuário. */
+  configPath: string;
   interactive: boolean;
   ask: (question: string) => string | null;
   out: (line: string) => void;
@@ -28,6 +33,7 @@ export type Env = {
 
 export const defaultEnv = (): Env => ({
   cwd: process.cwd(),
+  configPath: settingsPath(),
   interactive: Boolean(process.stdin.isTTY),
   ask: (q) => prompt(q),
   out: (l) => console.log(l),
@@ -51,6 +57,11 @@ export async function run(argv: string[], env: Env = defaultEnv()): Promise<numb
 
 async function main(argv: string[], env: Env): Promise<number> {
   const { cwd, out, err } = env;
+
+  if (argv[0] === "settings") {
+    return settingsCommand(argv.slice(1), { configPath: env.configPath, out });
+  }
+
   const opts = parseArgs(argv);
 
   if (opts.help) {
@@ -73,14 +84,9 @@ async function main(argv: string[], env: Env): Promise<number> {
   const current = await currentBranch(cwd);
 
   if (current === null) {
-    err(yellow("⚠ HEAD está destacado (detached); nenhum branch será tratado como 'atual'."));
+    err(yellow(t().detached()));
   } else if (current !== base) {
-    err(
-      yellow(
-        `⚠ Você está em '${current}', não em '${base}'. Com -d, o git pode recusar ` +
-          `branches sem upstream que não estejam mergeados em HEAD.`,
-      ),
-    );
+    err(yellow(t().notOnBase(current, base)));
   }
 
   const branches = await listMergedBranches(cwd, base);
@@ -101,12 +107,12 @@ async function main(argv: string[], env: Env): Promise<number> {
   });
 
   out(
-    `${bold("Base:")} ${base}   ${bold("Modo:")} -${mode}   ` +
-      `${bold("Dry-run:")} ${opts.dryRun ? "sim" : "não"}\n`,
+    `${bold(t().summaryBase())} ${base}   ${bold(t().summaryMode())} -${mode}   ` +
+      `${bold(t().summaryDryRun())} ${opts.dryRun ? t().yes() : t().no()}\n`,
   );
 
   if (skipped.length > 0) {
-    out(dim("Preservados:"));
+    out(dim(t().preserved()));
     for (const s of skipped) {
       const line = `  • ${s.name} — ${s.reason}`;
       out(s.warn ? yellow(line) : dim(line));
@@ -115,47 +121,42 @@ async function main(argv: string[], env: Env): Promise<number> {
   }
 
   if (prunable.size > 0) {
-    out(yellow("Dica: para apagar worktrees deletadas manualmente, rode git worktree prune"));
+    out(yellow(t().pruneTip()));
     out("");
   }
 
   if (toDelete.length === 0) {
-    out(green("✔ Nenhum branch para apagar."));
+    out(green(t().nothingToDelete()));
     return 0;
   }
 
-  out(`${opts.dryRun ? "Seriam apagados" : "Serão apagados"} (${toDelete.length}):`);
+  out(opts.dryRun ? t().wouldDelete(toDelete.length) : t().willDelete(toDelete.length));
   for (const b of toDelete) {
-    const wt = b.worktree ? dim(` + worktree ${b.worktree}`) : "";
+    const wt = b.worktree ? dim(t().worktreeSuffix(b.worktree)) : "";
     out(`  • ${b.name} ${dim(`(${b.sha.slice(0, 7)})`)}${wt}`);
   }
   out("");
 
   if (opts.dryRun) {
-    out(yellow("Dry-run: nada foi alterado."));
+    out(yellow(t().dryRunNote()));
     return 0;
   }
 
   if (mode === "D") {
-    err(
-      yellow(
-        "⚠ Modo -D ignora a checagem de merge do git. Commits exclusivos desses " +
-          "branches só poderão ser recuperados pelo reflog.",
-      ),
-    );
+    err(yellow(t().forceWarning()));
   }
 
   if (!opts.yes) {
     if (!env.interactive) {
-      throw new CliError("Sem terminal interativo para confirmar. Use --yes ou --dry-run.");
+      throw new CliError(t().nonInteractive());
     }
     const answer = (
-      env.ask(`Apagar ${toDelete.length} branch(es) com 'git branch -${mode}'? [s/N]`) ?? ""
+      env.ask(t().confirm(toDelete.length, mode)) ?? ""
     )
       .trim()
       .toLowerCase();
     if (!YES.includes(answer)) {
-      out("Cancelado.");
+      out(t().cancelled());
       return 0;
     }
   }
@@ -167,7 +168,7 @@ async function main(argv: string[], env: Env): Promise<number> {
     if (b.worktree) {
       const w = await removeWorktree(cwd, b.worktree);
       if (w.code !== 0) {
-        failures.push({ name: b.name, err: `worktree ${b.worktree}: ${w.err}` });
+        failures.push({ name: b.name, err: t().worktreeFailure(b.worktree, w.err) });
         out(red(`✖ ${b.name}`));
         continue;
       }
@@ -175,7 +176,7 @@ async function main(argv: string[], env: Env): Promise<number> {
     const r = await deleteBranch(cwd, mode, b.name);
     if (r.code === 0) {
       ok++;
-      out(green(`✔ ${b.name}`) + dim(` (era ${b.sha.slice(0, 7)})`));
+      out(green(`✔ ${b.name}`) + dim(t().was(b.sha.slice(0, 7))));
     } else {
       failures.push({ name: b.name, err: r.err });
       out(red(`✖ ${b.name}`));
@@ -183,13 +184,13 @@ async function main(argv: string[], env: Env): Promise<number> {
   }
 
   out(
-    `\n${green(`${ok} apagado(s)`)}, ${
-      failures.length > 0 ? red(`${failures.length} falha(s)`) : "0 falhas"
+    `\n${green(t().deletedCount(ok))}, ${
+      failures.length > 0 ? red(t().failuresCount(failures.length)) : t().zeroFailures()
     }.`,
   );
 
   if (failures.length > 0) {
-    err(red("\nDetalhes das falhas:"));
+    err(red(t().failureDetails()));
     for (const f of failures) err(`  • ${f.name}: ${f.err}`);
     return 1;
   }

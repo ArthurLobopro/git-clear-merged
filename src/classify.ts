@@ -1,3 +1,4 @@
+import { t } from "./i18n/index.ts";
 import type { Branch, WorktreeState } from "./git.ts";
 
 /** `warn`: o motivo merece destaque (ex.: worktree apagado à mão). */
@@ -35,15 +36,15 @@ export function classify(input: ClassifyInput): Classification {
     const worktreeReason = b.worktree ? skipReasonForWorktree(b.worktree, worktrees, prunable) : null;
     const gone = b.worktree !== "" && prunable?.has(b.worktree);
     if (b.name === current) {
-      skipped.push({ name: b.name, reason: "branch atual" });
+      skipped.push({ name: b.name, reason: t().skipCurrent() });
     } else if (globs.some((g) => g.match(b.name))) {
-      skipped.push({ name: b.name, reason: "protegido" });
+      skipped.push({ name: b.name, reason: t().skipProtected() });
     } else if (worktreeReason) {
       skipped.push({ name: b.name, reason: worktreeReason, ...(gone && { warn: true }) });
     } else if (!includeEmpty && b.sha === baseSha) {
       skipped.push({
         name: b.name,
-        reason: `mesmo commit de '${base}' (use --include-empty para apagar)`,
+        reason: t().skipSameCommit(base),
       });
     } else {
       toDelete.push(b);
@@ -59,10 +60,10 @@ function skipReasonForWorktree(
   state?: WorktreeState,
   prunable?: Set<string>,
 ): string | null {
-  if (prunable?.has(path)) return `worktree apagado manualmente ${path}`;
-  if (!state) return `em checkout no worktree ${path} (use --include-worktrees para removê-lo)`;
-  if (path === state.main) return `em checkout no worktree principal ${path}`;
-  if (state.locked.has(path)) return `worktree bloqueado ${path}`;
-  if (!state.clean.has(path)) return `worktree com alterações não commitadas ${path}`;
+  if (prunable?.has(path)) return t().skipWorktreeGone(path);
+  if (!state) return t().skipWorktreeCheckedOut(path);
+  if (path === state.main) return t().skipWorktreeMain(path);
+  if (state.locked.has(path)) return t().skipWorktreeLocked(path);
+  if (!state.clean.has(path)) return t().skipWorktreeDirty(path);
   return null;
 }
