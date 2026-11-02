@@ -76,7 +76,8 @@ export function deleteBranch(cwd: string, mode: "d" | "D", name: string): Promis
   return git(cwd, ["branch", `-${mode}`, name]);
 }
 
-export type Worktree = { path: string; locked: boolean };
+/** `prunable`: o diretório do worktree foi apagado à mão (requer git ≥ 2.31 para ser detectado). */
+export type Worktree = { path: string; locked: boolean; prunable: boolean };
 
 /** Estado dos worktrees usado para decidir quais podem ser removidos. */
 export type WorktreeState = {
@@ -95,6 +96,7 @@ export function parseWorktreeList(out: string): Worktree[] {
     .map((lines) => ({
       path: lines[0]!.slice("worktree ".length),
       locked: lines.some((l) => l === "locked" || l.startsWith("locked ")),
+      prunable: lines.some((l) => l === "prunable" || l.startsWith("prunable ")),
     }));
 }
 
@@ -115,8 +117,7 @@ export async function isWorktreeClean(path: string): Promise<boolean> {
   }
 }
 
-export async function loadWorktreeState(cwd: string, branches: Branch[]): Promise<WorktreeState> {
-  const all = await listWorktrees(cwd);
+export async function loadWorktreeState(all: Worktree[], branches: Branch[]): Promise<WorktreeState> {
   const clean = new Set<string>();
   for (const b of branches) {
     if (b.worktree && (await isWorktreeClean(b.worktree))) clean.add(b.worktree);

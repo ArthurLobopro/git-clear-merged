@@ -18,11 +18,16 @@ describe("parseBranchList", () => {
 });
 
 describe("parseWorktreeList", () => {
+  test("detecta worktree prunable", () => {
+    const out = "worktree /r\nHEAD a\nbranch refs/heads/main\n\nworktree /w\nHEAD b\nbranch refs/heads/x\nprunable gitdir file points to non-existent location\n\n";
+    expect(parseWorktreeList(out).map((w) => w.prunable)).toEqual([false, true]);
+  });
+
   test("interpreta saída --porcelain", () => {
     const out = "worktree /r\nHEAD abc\nbranch refs/heads/main\n\nworktree /w\nHEAD def\nbranch refs/heads/x\nlocked motivo\n\n";
     expect(parseWorktreeList(out)).toEqual([
-      { path: "/r", locked: false },
-      { path: "/w", locked: true },
+      { path: "/r", locked: false, prunable: false },
+      { path: "/w", locked: true, prunable: false },
     ]);
   });
 });
@@ -78,8 +83,8 @@ describe("operações git", () => {
     const path = await repo.addWorktree("feat/wt");
     await repo.git("worktree", "lock", path);
     expect(await listWorktrees(repo.dir)).toEqual([
-      { path: repo.dir, locked: false },
-      { path, locked: true },
+      { path: repo.dir, locked: false, prunable: false },
+      { path, locked: true, prunable: false },
     ]);
   });
 
@@ -99,7 +104,7 @@ describe("operações git", () => {
     const b = await repo.addWorktree("feat/b");
     await Bun.write(`${b}/sujo.txt`, "x");
     const branches = await listMergedBranches(repo.dir, "main");
-    const state = await loadWorktreeState(repo.dir, branches);
+    const state = await loadWorktreeState(await listWorktrees(repo.dir), branches);
     expect(state.main).toBe(repo.dir);
     expect([...state.clean]).toContain(a);
     expect([...state.clean]).not.toContain(b);

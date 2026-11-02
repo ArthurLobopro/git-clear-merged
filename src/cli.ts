@@ -8,6 +8,7 @@ import {
   currentBranch,
   deleteBranch,
   listMergedBranches,
+  listWorktrees,
   loadWorktreeState,
   removeWorktree,
   resolveBase,
@@ -83,7 +84,11 @@ async function main(argv: string[], env: Env): Promise<number> {
   }
 
   const branches = await listMergedBranches(cwd, base);
-  const worktrees = opts.includeWorktrees ? await loadWorktreeState(cwd, branches) : undefined;
+  const allWorktrees = await listWorktrees(cwd);
+  const prunable = new Set(allWorktrees.filter((w) => w.prunable).map((w) => w.path));
+  const worktrees = opts.includeWorktrees
+    ? await loadWorktreeState(allWorktrees, branches)
+    : undefined;
   const { toDelete, skipped } = classify({
     branches,
     base,
@@ -92,6 +97,7 @@ async function main(argv: string[], env: Env): Promise<number> {
     exclude: opts.exclude,
     includeEmpty: opts.includeEmpty,
     worktrees,
+    prunable,
   });
 
   out(
@@ -101,7 +107,15 @@ async function main(argv: string[], env: Env): Promise<number> {
 
   if (skipped.length > 0) {
     out(dim("Preservados:"));
-    for (const s of skipped) out(dim(`  • ${s.name} — ${s.reason}`));
+    for (const s of skipped) {
+      const line = `  • ${s.name} — ${s.reason}`;
+      out(s.warn ? yellow(line) : dim(line));
+    }
+    out("");
+  }
+
+  if (prunable.size > 0) {
+    out(yellow("Dica: para apagar worktrees deletadas manualmente, rode git worktree prune"));
     out("");
   }
 

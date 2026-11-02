@@ -26,6 +26,17 @@ describe("classify", () => {
     expect(r.skipped[0]!.reason).toContain("--include-worktrees");
   });
 
+  test("worktree apagado à mão é marcado como apagado manualmente (warn)", () => {
+    const wt = b("feat/x", "bbbbbbb", "/gone");
+    for (const worktrees of [undefined, { main: "/r", locked: new Set<string>(), clean: new Set<string>() }]) {
+      const r = classify(input([wt], { prunable: new Set(["/gone"]), worktrees }));
+      expect(r.toDelete).toEqual([]);
+      expect(r.skipped[0]).toEqual({
+        name: "feat/x", reason: "worktree apagado manualmente /gone", warn: true,
+      });
+    }
+  });
+
   describe("com --include-worktrees", () => {
     const state = (over: Partial<WorktreeState> = {}): WorktreeState => ({
       main: "/repo", locked: new Set(), clean: new Set(["/wt"]), ...over,

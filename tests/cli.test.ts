@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import pkg from "../package.json";
+import { rm } from "node:fs/promises";
 import { run } from "../src/cli.ts";
 import { createRepo, testEnv } from "./helpers.ts";
 
@@ -188,6 +189,40 @@ describe("cli run", () => {
       expect(await repo.branches()).toContain("feat/a");
       expect(await Bun.file(`${repo.dir}/.git/HEAD`).exists()).toBe(true);
       expect(t.text()).toContain("worktree principal");
+    });
+  });
+
+  describe("worktree apagado à mão", () => {
+    const gone = async () => {
+      const wt = await repo.addWorktree("feat/a");
+      await rm(wt, { recursive: true, force: true });
+      return wt;
+    };
+
+    test.each([[[]], [["-w"]]])("marca na listagem e mostra a dica de prune (%j)", async (extra) => {
+      const wt = await gone();
+      const t = testEnv(repo.dir);
+      expect(await run(["-y", "-e", "feat/b", "-e", "release/*", ...extra], t.env)).toBe(0);
+      expect(t.text()).toContain(`feat/a — worktree apagado manualmente ${wt}`);
+      expect(t.text()).toContain(
+        "Dica: para apagar worktrees deletadas manualmente, rode git worktree prune",
+      );
+      expect(await repo.branches()).toContain("feat/a");
+    });
+
+    test("depois do prune o branch pode ser apagado", async () => {
+      await gone();
+      await repo.git("worktree", "prune");
+      const t = testEnv(repo.dir);
+      expect(await run(["-y"], t.env)).toBe(0);
+      expect(t.text()).not.toContain("git worktree prune");
+      expect(await repo.branches()).toEqual(["main"]);
+    });
+
+    test("sem worktrees apagados, o aviso não aparece", async () => {
+      const t = testEnv(repo.dir);
+      await run(["-n"], t.env);
+      expect(t.text()).not.toContain("git worktree prune");
     });
   });
 });
